@@ -12,6 +12,7 @@ from flask import flash, redirect, render_template, send_from_directory, url_for
 from social_insecurity import sqlite
 from social_insecurity.forms import CommentsForm, FriendsForm, IndexForm, PostForm, ProfileForm
 
+import bleach
 
 @app.route("/", methods=["GET", "POST"])
 @app.route("/index", methods=["GET", "POST"])
@@ -28,12 +29,12 @@ def index():
     register_form = index_form.register
 
     if login_form.is_submitted() and login_form.submit.data:
-        get_user = f"""
+        get_user = """
             SELECT *
             FROM Users
-            WHERE username = '{login_form.username.data}';
+            WHERE username = ?;
             """
-        user = sqlite.query(get_user, one=True)
+        user = sqlite.query(get_user, login_form.username.data, one=True)
 
         if user is None:
             flash("Sorry, this user does not exist!", category="warning")
@@ -43,11 +44,11 @@ def index():
             return redirect(url_for("stream", username=login_form.username.data))
 
     elif register_form.is_submitted() and register_form.submit.data:
-        insert_user = f"""
+        insert_user = """
             INSERT INTO Users (username, first_name, last_name, password)
-            VALUES ('{register_form.username.data}', '{register_form.first_name.data}', '{register_form.last_name.data}', '{register_form.password.data}');
+            VALUES (?, ? ,? , ?);
             """
-        sqlite.query(insert_user)
+        sqlite.query(insert_user, register_form.username.data, register_form.first_name.data, register_form.last_name.data, register_form.password.data)
         flash("User successfully created!", category="success")
         return redirect(url_for("index"))
 
@@ -63,32 +64,41 @@ def stream(username: str):
     Otherwise, it reads the username from the URL and displays all posts from the user and their friends.
     """
     post_form = PostForm()
-    get_user = f"""
+    get_user = """
         SELECT *
         FROM Users
-        WHERE username = '{username}';
+        WHERE username = ?;
         """
-    user = sqlite.query(get_user, one=True)
+    user = sqlite.query(get_user, username, one=True)
 
     if post_form.is_submitted():
+        content = bleach.clean(post_form.content.data)
+    
+        filename = None  # Sett en standardverdi for filnavnet    
+
+
         if post_form.image.data:
+            # Bruker filnavnet direkte uten sikring (ikke anbefalt)
+            filename = post_form.image.data.filename
             path = Path(app.instance_path) / app.config["UPLOADS_FOLDER_PATH"] / post_form.image.data.filename
             post_form.image.data.save(path)
 
-        insert_post = f"""
+        insert_post = """
             INSERT INTO Posts (u_id, content, image, creation_time)
-            VALUES ({user["id"]}, '{post_form.content.data}', '{post_form.image.data.filename}', CURRENT_TIMESTAMP);
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP);
             """
-        sqlite.query(insert_post)
+        sqlite.query(insert_post, user["id"], content, filename)
         return redirect(url_for("stream", username=username))
 
-    get_posts = f"""
+    get_posts = """
          SELECT p.*, u.*, (SELECT COUNT(*) FROM Comments WHERE p_id = p.id) AS cc
          FROM Posts AS p JOIN Users AS u ON u.id = p.u_id
-         WHERE p.u_id IN (SELECT u_id FROM Friends WHERE f_id = {user["id"]}) OR p.u_id IN (SELECT f_id FROM Friends WHERE u_id = {user["id"]}) OR p.u_id = {user["id"]}
+         WHERE p.u_id IN (SELECT u_id FROM Friends WHERE f_id = ?)
+         OR p.u_id IN (SELECT f_id FROM Friends WHERE u_id = ?)
+         OR p.u_id = ?
          ORDER BY p.creation_time DESC;
         """
-    posts = sqlite.query(get_posts)
+    posts = sqlite.query(get_posts, user["id"], user["id"], user["id"])
     return render_template("stream.html.j2", title="Stream", username=username, form=post_form, posts=posts)
 
 
@@ -109,25 +119,26 @@ def comments(username: str, post_id: int):
     user = sqlite.query(get_user, one=True)
 
     if comments_form.is_submitted():
-        insert_comment = f"""
+        clean_comment = bleach.clean(comments_form.comment.data)
+        insert_comment = """
             INSERT INTO Comments (p_id, u_id, comment, creation_time)
-            VALUES ({post_id}, {user["id"]}, '{comments_form.comment.data}', CURRENT_TIMESTAMP);
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP);
             """
-        sqlite.query(insert_comment)
+        sqlite.query(insert_comment, (post_id, user["id"], clean_comment))
 
-    get_post = f"""
+    get_post = """
         SELECT *
         FROM Posts AS p JOIN Users AS u ON p.u_id = u.id
-        WHERE p.id = {post_id};
+        WHERE p.id = ?;
         """
-    get_comments = f"""
+    get_comments = """
         SELECT DISTINCT *
         FROM Comments AS c JOIN Users AS u ON c.u_id = u.id
-        WHERE c.p_id={post_id}
+        WHERE c.p_id=?
         ORDER BY c.creation_time DESC;
         """
     post = sqlite.query(get_post, one=True)
-    comments = sqlite.query(get_comments)
+    comments = sqlite.query(get_comments, (post_id,))
     return render_template(
         "comments.html.j2", title="Comments", username=username, form=comments_form, post=post, comments=comments
     )
@@ -156,12 +167,12 @@ def friends(username: str):
             WHERE username = '{friends_form.username.data}';
             """
         friend = sqlite.query(get_friend, one=True)
-        get_friends = f"""
+        get_friends = """
             SELECT f_id
             FROM Friends
-            WHERE u_id = {user["id"]};
+            WHERE username = ?;
             """
-        friends = sqlite.query(get_friends)
+        friend = sqlite.query(get_friend, friends_form.username.data, one=True)
 
         if friend is None:
             flash("User does not exist!", category="warning")

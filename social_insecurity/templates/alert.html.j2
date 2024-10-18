@@ -5,7 +5,7 @@
       <!-- Uses flash category to set alert type. Allowed categories are: 'info', 'success', 'warning', 'danger' -->
       <div class="alert alert-{{ category }} alert-dismissible fade show"
            role="alert">
-        {{ message }}
+        {{ message | e }}
         <button type="button"
                 class="btn-close"
                 data-bs-dismiss="alert"

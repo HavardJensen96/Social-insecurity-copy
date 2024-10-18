@@ -16,7 +16,7 @@
                 </div>
               </div>
               <div class="card-body">
-                <p class="card-text">{{ post.content }}</p>
+                <p class="card-text">{{ comment.comment | e }}</p>
                 {% if post.image %}
                   <img src={{ url_for('uploads', filename=post.image) }} alt={{ post.image }} class="img-fluid mb-3">
                 {% endif %}
@@ -39,7 +39,7 @@
               </div>
             </div>
             <div class="card-body">
-              <p class="card-text">{{ comment.comment }}</p>
+              <p class="card-text">{{ comment.comment | e }}</p>
             </div>
           </div>
         {% endfor %}

@@ -25,7 +25,7 @@
               <ul class="list-group list-group-flush">
                 {% for friend in friends %}
                   <li class="list-group-item">
-                    <a href={{ url_for('profile', username=friend.username) }}>{{ friend.username }}</a>
+                    <a href={{ url_for('profile', username=friend.username) }}>{{ friend.username | e }}</a>
                   </li>
                 {% endfor %}
               </ul>
