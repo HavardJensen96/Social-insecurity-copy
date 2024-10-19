@@ -43,7 +43,7 @@ def index():
         elif user["password"] == login_form.password.data:
             return redirect(url_for("stream", username=login_form.username.data))
 
-    elif register_form.is_submitted() and register_form.submit.data:
+    elif register_form.validate_on_submit(): #validerer passord
         insert_user = """
             INSERT INTO Users (username, first_name, last_name, password)
             VALUES (?, ? ,? , ?);
@@ -98,7 +98,6 @@ def stream(username: str):
          OR p.u_id = ?
          ORDER BY p.creation_time DESC;
         """
-    posts = sqlite.query(get_posts, user["id"], user["id"], user["id"])
     return render_template("stream.html.j2", title="Stream", username=username, form=post_form, posts=posts)
 
 

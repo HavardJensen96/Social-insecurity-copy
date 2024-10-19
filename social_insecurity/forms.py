@@ -30,6 +30,11 @@ from wtforms import (
     TextAreaField,
 )
 
+#importerer for å få passordbeskyttelse:
+
+from wtforms import PasswordField
+from wtforms.validators import DataRequired, Length, EqualTo, Regexp
+
 # Defines all forms in the application, these will be instantiated by the template,
 # and the routes.py will read the values of the fields
 
@@ -55,8 +60,27 @@ class RegisterForm(FlaskForm):
     first_name = StringField(label="First Name", render_kw={"placeholder": "First Name"})
     last_name = StringField(label="Last Name", render_kw={"placeholder": "Last Name"})
     username = StringField(label="Username", render_kw={"placeholder": "Username"})
-    password = PasswordField(label="Password", render_kw={"placeholder": "Password"})
-    confirm_password = PasswordField(label="Confirm Password", render_kw={"placeholder": "Confirm Password"})
+    password = PasswordField(
+        label="Password", 
+        render_kw={"placeholder": "Password"},
+        validators=[
+            DataRequired(),
+            Length(min=8, message="Password must be at least 8 characters long."),
+            Regexp(
+                '^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$', 
+                message="Password must contain at least one letter and one number."
+            )
+        ]
+    )
+    
+    confirm_password = PasswordField(
+        label="Confirm Password", 
+        render_kw={"placeholder": "Confirm Password"},
+        validators=[
+            DataRequired(),
+            EqualTo('password', message="Passwords must match.")
+        ]
+    )    
     submit = SubmitField(label="Sign Up")
 
 
