@@ -12,10 +12,22 @@ from flask import flash, redirect, render_template, send_from_directory, url_for
 from social_insecurity import sqlite
 from social_insecurity.forms import CommentsForm, FriendsForm, IndexForm, PostForm, ProfileForm
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 import bleach
+
+limiter = Limiter(
+    get_remote_address,  # Bruker klientens IP-adresse for å begrense forespørsler
+    app=app,
+    default_limits=["200 per day", "50 per hour"]  # Globale standardgrenser
+)
+
+
 
 @app.route("/", methods=["GET", "POST"])
 @app.route("/index", methods=["GET", "POST"])
+@limiter.limit("5 per minute")  # Begrens til 5 forsøk per minutt
 def index():
     """Provides the index page for the application.
 
@@ -98,6 +110,8 @@ def stream(username: str):
          OR p.u_id = ?
          ORDER BY p.creation_time DESC;
         """
+    posts = sqlite.query(get_posts, user["id"], user["id"], user["id"])
+    
     return render_template("stream.html.j2", title="Stream", username=username, form=post_form, posts=posts)
 
 
