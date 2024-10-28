@@ -30,6 +30,8 @@ csrf = CSRFProtect()  # Initialize CSRF protection
 # TODO: The CSRF protection is not working, I should probably fix that
 # csrf = CSRFProtect()
 
+talisman = Talisman()  # Oppretter en Talisman-instans
+
 csp = {
     'default-src': ["'self'"],  # Restrict everything to the same origin
     'script-src': ["'self'", "'unsafe-inline'"],  # Allow inline scripts (consider limiting this for security)
@@ -38,7 +40,6 @@ csp = {
     'font-src': ["'self'", "https://fonts.gstatic.com"],  # Allow fonts from trusted sources
     'object-src': ["'none'"],  # Disallow <object> tags for Flash and others
 }
-
 
 
 def create_app(test_config=None) -> Flask:
@@ -55,7 +56,8 @@ def create_app(test_config=None) -> Flask:
     # bcrypt.init_app(app)
     csrf.init_app(app)
 
-    
+        # Initialiser Talisman for å hindre clickjacking
+    talisman.init_app(app, content_security_policy=None, frame_options="DENY")
 
     with app.app_context():
         create_uploads_folder(app)
